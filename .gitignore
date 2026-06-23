@@ -22,3 +22,7 @@ rootfs/*
 
 # AI stuff
 .claude/
+
+# Homelab: decrypted rjn flavor config holds the vyos user password hash.
+# Tracked only as data/build-flavors/rjn.toml.age; the plaintext stays local.
+/data/build-flavors/rjn.toml
