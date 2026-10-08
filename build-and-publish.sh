@@ -11,6 +11,10 @@
 # Usage:  ./build-and-publish.sh [flavor ...]
 #   e.g.  ./build-and-publish.sh                # builds the default flavor (rjn)
 #         ./build-and-publish.sh rjn generic    # rjn plus stock upstream generic
+#         ./build-and-publish.sh --no-prune     # publish without pruning older ISOs
+#
+# --no-prune skips the retention step, so every older ISO of the built
+# flavor(s) stays in the publish dir (e.g. to keep an extra rollback image).
 #
 # Run as rnavarro on fileserver.fmt2.crshman.info.
 
@@ -32,7 +36,15 @@ AGE_IDENTITY="${AGE_IDENTITY:-$HOME/.config/vyos-build/age-identity.txt}"
 SIGN_KEY="${SIGN_KEY:-$HOME/.config/vyos-build/rjn-minisign.key}"
 
 # Flavors to build: CLI args, else the default (our single fleet image).
-FLAVORS=("$@")
+PRUNE=1
+FLAVORS=()
+for ARG in "$@"; do
+    case "$ARG" in
+        --no-prune) PRUNE=0 ;;
+        -*) echo "ERROR: unknown option '$ARG'" >&2; exit 1 ;;
+        *) FLAVORS+=("$ARG") ;;
+    esac
+done
 if [[ ${#FLAVORS[@]} -eq 0 ]]; then
     FLAVORS=(rjn)
 fi
@@ -114,12 +126,17 @@ for FLAVOR in "${FLAVORS[@]}"; do
     # prior for rollback), plus their .minisig; prune older ones. Only touches
     # the flavor just built, so other flavors' images (e.g. an old rollback of a
     # retired flavor) stay.
+    # Skipped entirely with --no-prune.
     KEEP=2
-    mapfile -t OLD < <(ls -1t "$PUBLISH_DIR"/vyos-*-${FLAVOR}-amd64.iso 2>/dev/null | tail -n +$((KEEP + 1)))
-    for OLD_ISO in "${OLD[@]}"; do
-        echo "[$(date +%H:%M:%S)] pruning old $FLAVOR ISO $(basename "$OLD_ISO")"
-        rm -f "$OLD_ISO" "$OLD_ISO.minisig"
-    done
+    if [[ $PRUNE -eq 1 ]]; then
+        mapfile -t OLD < <(ls -1t "$PUBLISH_DIR"/vyos-*-${FLAVOR}-amd64.iso 2>/dev/null | tail -n +$((KEEP + 1)))
+        for OLD_ISO in "${OLD[@]}"; do
+            echo "[$(date +%H:%M:%S)] pruning old $FLAVOR ISO $(basename "$OLD_ISO")"
+            rm -f "$OLD_ISO" "$OLD_ISO.minisig"
+        done
+    else
+        echo "[$(date +%H:%M:%S)] --no-prune: keeping all older $FLAVOR ISOs"
+    fi
 done
 
 echo

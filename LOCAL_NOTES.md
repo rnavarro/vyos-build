@@ -48,6 +48,8 @@ built by default.
 ## ISO retention
 `/tank/ISOs/Iso/` keeps the **2 most recent ISOs per flavor** (current + one
 prior for rollback); older ones are pruned after a successful publish.
+Pass `--no-prune` (`./build-and-publish.sh --no-prune [flavor ...]`) to skip
+pruning for that run, e.g. to keep an extra rollback image.
 
 ## Secrets (age encryption)
 `rjn.toml` carries the `vyos` user's password hash, so it is **never committed
